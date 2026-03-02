@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Exam Control & QR System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root { --primary: #007bff; --bg: #f8f9fa; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 450px; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
+        .btn-teacher { background: var(--primary); color: white; }
+        .btn-student { background: #28a745; color: white; }
+        .btn-finish { background: #dc3545; color: white; position: fixed; bottom: 20px; right: 20px; width: auto; z-index: 2000; padding: 10px 20px; }
+        #test-frame { width: 100%; height: 100vh; border: none; display: none; position: fixed; top: 0; left: 0; z-index: 1000; background: white; }
+        #qrcode { margin: 20px auto; display: inline-block; padding: 10px; background: white; border: 1px solid #eee; }
+        .alert { position: fixed; top: 0; left: 0; width: 100%; background: #dc3545; color: white; text-align: center; padding: 15px; font-weight: bold; display: none; z-index: 9999; }
+    </style>
+</head>
+<body>
+
+    <div id="alert-banner" class="alert">ВИХІД ЗАФІКСОВАНО! ПОВЕРНІТЬСЯ ДО ТЕСТУ!</div>
+    <button id="finish-btn" class="btn-finish" style="display:none" onclick="finishExam()">Здати роботу</button>
+
+    <div id="teacher-ui" class="card">
+        <h2>Налаштування вчителя</h2>
+        <input type="password" id="t-token" placeholder="Telegram Bot Token">
+        <input type="text" id="t-chatid" placeholder="Ваш Chat ID">
+        <input type="text" id="t-form" placeholder="Посилання на Google Форму">
+        <input type="number" id="t-count" placeholder="Кількість учнів у класі">
+        <button class="btn-teacher" onclick="generateSession()">Створити сесію та QR</button>
+        
+        <div id="link-display" style="display:none">
+            <p style="font-size: 12px; color: green; margin-top: 15px;">Покажіть цей QR-код учням:</p>
+            <div id="qrcode"></div>
+            <p id="final-link" style="font-size: 10px; color: #999; word-break: break-all;"></p>
+        </div>
+    </div>
+
+    <div id="student-ui" class="card" style="display:none">
+        <h2>Вхід на контрольну</h2>
+        <input type="text" id="s-name" placeholder="Ваше Прізвище та Ім'я">
+        <button class="btn-student" onclick="startExam()">Почати тест</button>
+    </div>
+
+    <iframe id="test-frame" src=""></iframe>
+
+    <script>
+        let config = { t: "", c: "", f: "", name: "", active: false };
+
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('t')) {
+                document.getElementById('teacher-ui').style.display = 'none';
+                document.getElementById('student-ui').style.display = 'block';
+                config.t = urlParams.get('t');
+                config.c = urlParams.get('c');
+                config.f = decodeURIComponent(urlParams.get('f'));
+            }
+        };
+
+        async function tg(msg) {
+            await fetch(`https://api.telegram.org/bot${config.t}/sendMessage?chat_id=${config.c}&text=${encodeURIComponent(msg)}`);
+        }
+
+        function generateSession() {
+            const token = document.getElementById('t-token').value;
+            const chatid = document.getElementById('t-chatid').value;
+            const form = encodeURIComponent(document.getElementById('t-form').value);
+            const count = document.getElementById('t-count').value;
+
+            if(!token || !chatid || !form) return alert("Заповніть усі поля!");
+
+            const link = `${window.location.origin}${window.location.pathname}?t=${token}&c=${chatid}&f=${form}`;
+            
+            // Очищуємо старий QR і створюємо новий
+            document.getElementById('qrcode').innerHTML = "";
+            new QRCode(document.getElementById("qrcode"), {
+                text: link,
+                width: 200,
+                height: 200
+            });
+
+            document.getElementById('final-link').innerText = link;
+            document.getElementById('link-display').style.display = 'block';
+            
+            config.t = token; config.c = chatid;
+            tg(`📢 СЕСІЯ СТВОРЕНА. Очікуємо ${count} учнів.`);
+        }
+
+        function startExam() {
+            config.name = document.getElementById('s-name').value;
+            if(!config.name) return alert("Введіть ім'я!");
+            document.getElementById('student-ui').style.display = 'none';
+            document.getElementById('test-frame').src = config.f;
+            document.getElementById('test-frame').style.display = 'block';
+            document.getElementById('finish-btn').style.display = 'block';
+            config.active = true;
+            if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+            tg(`✅ УЧЕНЬ ПРИЄДНАВСЯ: ${config.name}`);
+        }
+
+        function finishExam() {
+            if(confirm("Здати роботу?")) {
+                tg(`🏁 УЧЕНЬ ЗАВЕРШИВ: ${config.name}`);
+                config.active = false;
+                alert("Роботу здано!");
+                location.reload();
+            }
+        }
+
+        document.addEventListener("visibilitychange", () => {
+            if (config.active && document.hidden) {
+                document.getElementById('alert-banner').style.display = 'block';
+                tg(`🚨 УВАГА! ${config.name} ЗГОРНУВ БРАУЗЕР!`);
+                setTimeout(() => { document.getElementById('alert-banner').style.display = 'none'; }, 4000);
+            }
+        });
+        
+        document.oncontextmenu = (e) => e.preventDefault();
+    </script>
+</body>
+</html>
