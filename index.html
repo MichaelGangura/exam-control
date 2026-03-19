@@ -318,6 +318,7 @@
             word-break: break-all;
             margin-top: 10px;
             border: 1px dashed #ccc;
+            touch-action: manipulation;
             cursor: pointer;
         }
 
@@ -422,9 +423,9 @@
                 <div class="link-container"><a href="#instruction">Детальна Інструкція</a></div>
             </nav>
 
-            <model-viewer class="m1" src="assets/sphere.glb" alt="A description of your 3D model" shadow-intensity="1"
+            <model-viewer class="m1" src="assets/sphere.glb" alt="3D model" shadow-intensity="1"
                 auto-rotate></model-viewer>
-            <model-viewer class="m2" src="assets/sphere.glb" alt="A description of your 3D model" shadow-intensity="1"
+            <model-viewer class="m2" src="assets/sphere.glb" alt="3D model" shadow-intensity="1"
                 auto-rotate></model-viewer>
             <section id="teacher-ui" class="card">
                 <h2>СТВОРИТИ КОНТРОЛЬНУ</h2>
@@ -569,13 +570,21 @@
             }
         }
 
+        // ОНОВЛЕНИЙ КОНТРОЛЬ ВИХОДУ ТА ПОВЕРНЕННЯ
         document.addEventListener("visibilitychange", () => {
-            if (config.active && document.hidden) {
-                document.getElementById('alert-banner').style.display = 'block';
-                tg(`🚨 УВАГА! ${config.name} ВИЙШОВ З БРАУЗЕРА!`);
-                setTimeout(() => document.getElementById('alert-banner').style.display = 'none', 4000);
+            if (config.active) {
+                if (document.hidden) {
+                    // Коли учень згорнув вкладку
+                    document.getElementById('alert-banner').style.display = 'block';
+                    tg(`🚨 УВАГА! Учень ${config.name} ВИЙШОВ З БРАУЗЕРА!`);
+                } else {
+                    // Коли учень повернувся у вкладку
+                    document.getElementById('alert-banner').style.display = 'none';
+                    tg(`↩️ Учень ${config.name} повернувся до роботи.`);
+                }
             }
         });
+
         document.oncontextmenu = (e) => e.preventDefault();
     </script>
 </body>
