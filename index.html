@@ -4,6 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self'; 
+        script-src 'self' https://ajax.googleapis.com https://cdnjs.cloudflare.com 'unsafe-inline'; 
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
+        img-src 'self' data: https://via.placeholder.com; 
+        connect-src 'self' https://api.telegram.org; 
+        frame-src https://docs.google.com https://www.youtube.com; 
+        font-src 'self' https://fonts.gstatic.com;
+    ">
     <title>Exam Control</title>
     <link rel="icon" type="image/png" href="assets/favicon.png">
     <link rel="preload" href="assets/inter-v20-cyrillic_latin-100.woff2" as="font" type="font/woff2" crossorigin>
@@ -142,6 +151,7 @@
         input {
             width: 100%;
             background: rgba(255, 255, 255, 0.2);
+            font-weight: 300;
             padding: 12px;
             margin: 10px 0;
             border: 1px solid rgba(255, 255, 255, 0.5);
@@ -173,13 +183,6 @@
             border: none;
         }
 
-
-        /* Анімована рамка кнопки */
-        /* @property --angle {
-            syntax: "<angle>";
-            initial-value: 0deg;
-            inherits: false;
-        } */
 
         .border-btn {
             position: relative;
@@ -432,6 +435,7 @@
                 <input type="password" id="t-token" placeholder="Telegram Bot Token">
                 <input type="text" id="t-chatid" placeholder="Ваш Chat ID">
                 <input type="text" id="t-form" placeholder="Посилання на Google Форму">
+                <input type="text" id="h-pot" style="display:none;" tabindex="-1" autocomplete="off">
                 <button class="border-btn btn-teacher" onclick="generateSession()">ЗГЕНЕРУВАТИ ДОСТУП</button>
                 <div id="link-display" style="display:none">
                     <div class="link-label">1. Посилання для месенджерів:</div>
@@ -458,14 +462,14 @@
                     <li>Створюйте запитання з короткими або розгорнутими відповідями.</li>
                     <li>(Детальніше про налаштування дивіться у відео нижче).</li>
                 </ul>
-                <p><b>Інструкція для учнів (промовте перед тестом):</b></p>
+                <p><b>Інструкція для учнів (промовте перед тестом/контрольною):</b></p>
                 <ul>
                     <li class="sub">Відскануйте QR-код або перейдіть за посиланням.</li>
                     <li class="sub">Введіть своє прізвище та ім'я — вчитель отримає сповіщення про ваш вхід.</li>
-                    <li class="sub"><b>Важливо:</b> не згортайте браузер і не відкривайте інші вкладки! Вчитель миттєво
+                    <li class="sub"><b>Важливо:</b> не згортайте браузер і не відкривайте інші вкладки, також будь-якими кнопками не вимикайте і не виходьте з поточного екрана роботи, включаючи повне згасання екрана також! Вчитель миттєво
                         отримає сповіщення про спробу списування.</li>
                     <li class="sub">Після завершення тесту натисніть "Надіслати" у Google Формі, а потім червону кнопку
-                        "Здати роботу" внизу екрана.</li>
+                        "Здати роботу вчителю" внизу екрана.</li>
                 </ul>
             </section>
             <section class="video-grid">
@@ -496,26 +500,89 @@
     <iframe id="test-frame" src="" onload="handleFrameLoad()"></iframe>
 
     <script>
+        // Конфігурація та стан
         let config = { t: "", c: "", f: "", name: "", active: false, loadCount: 0 };
+
+        // Функція для безпечного очищення тексту (Захист від XSS)
+        function sanitize(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('t')) {
-                document.getElementById('teacher-ui-main').style.display = 'none';
-                document.getElementById('instruction').style.display = 'none';
-                document.querySelector('.video-grid').style.display = 'none';
-                document.getElementById('donate').style.display = 'none';
-                document.querySelector('nav').style.display = 'none';
-                
-                document.getElementById('student-ui').style.display = 'block';
-                config.t = urlParams.get('t');
-                config.c = urlParams.get('c');
-                config.f = decodeURIComponent(urlParams.get('f'));
+                activateStudentMode(urlParams);
+            } else {
+                setupPasteButtons();
             }
         };
 
+        // Функція безпечної вставки з буфера
+        function setupPasteButtons() {
+            const fields = ['t-token', 't-chatid', 't-form'];
+            fields.forEach(id => {
+                const input = document.getElementById(id);
+                if (!input) return;
+
+                const wrapper = document.createElement('div');
+                wrapper.className = "input-wrapper"; // Додайте стилі в CSS для позиціонування
+                wrapper.style.position = 'relative';
+                wrapper.style.display = 'flex';
+                
+                input.parentNode.insertBefore(wrapper, input);
+                wrapper.appendChild(input);
+
+                const pasteBtn = document.createElement('div');
+                pasteBtn.innerHTML = '📋';
+                pasteBtn.className = "paste-btn";
+                pasteBtn.style.cssText = "cursor:pointer; padding:10px; position:absolute; right:10px; top:50%; transform:translateY(-50%); background:#eee; border-radius:5px; font-size:14px; opacity:0.7;";
+
+                pasteBtn.onclick = async () => {
+                    try {
+                        const text = await navigator.clipboard.readText();
+                        // Важливо: записуємо в .value, браузер сам обробить це як рядок
+                        input.value = text.trim(); 
+                        pasteBtn.style.background = '#28a745';
+                        setTimeout(() => pasteBtn.style.background = '#eee', 500);
+                    } catch (err) {
+                        console.log("Clipboard access denied");
+                    }
+                };
+                wrapper.appendChild(pasteBtn);
+            });
+        }
+
+        function activateStudentMode(params) {
+            // Ховаємо все зайве
+            const uiElements = ['teacher-ui-main', 'instruction', '.video-grid', 'donate', 'nav'];
+            uiElements.forEach(el => {
+                const found = document.querySelector(el) || document.getElementById(el);
+                if (found) found.style.display = 'none';
+            });
+            
+            document.getElementById('student-ui').style.display = 'block';
+            
+            // Санітарна обробка вхідних параметрів з URL
+            config.t = params.get('t').replace(/[^a-zA-Z0-9:]/g, ''); // Токени ботів мають лише цифри, букви та двокрапку
+            config.c = params.get('c').replace(/[^0-9-]/g, ''); // ID чату — лише цифри та мінус
+            config.f = decodeURIComponent(params.get('f'));
+        }
+
         async function tg(msg) {
-            await fetch(`https://api.telegram.org/bot${config.t}/sendMessage?chat_id=${config.c}&text=${encodeURIComponent(msg)}`);
+            // Надсилаємо повідомлення як чистий текст (захист від ін'єкцій у Telegram)
+            try {
+                const url = `https://api.telegram.org/bot${config.t}/sendMessage`;
+                await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: config.c,
+                        text: msg // Telegram API саме екранує текст у JSON
+                    })
+                });
+            } catch(e) { console.error("Network error"); }
         }
 
         function handleFrameLoad() {
@@ -528,34 +595,49 @@
         }
 
         function generateSession() {
-            const token = document.getElementById('t-token').value;
-            const chatid = document.getElementById('t-chatid').value;
-            const form = encodeURIComponent(document.getElementById('t-form').value);
+            // Honeypot перевірка (якщо ви додали приховане поле id="h-pot")
+            const pot = document.getElementById('h-pot');
+            if (pot && pot.value !== "") return; 
 
-            if(!token || !chatid || !form) return alert("Заповніть усі поля!");
+            const token = document.getElementById('t-token').value.trim();
+            const chatid = document.getElementById('t-chatid').value.trim();
+            const form = encodeURIComponent(document.getElementById('t-form').value.trim());
+
+            if(!token || !chatid || !form) return alert("Заповніть поля!");
 
             const link = `${window.location.origin}${window.location.pathname}?t=${token}&c=${chatid}&f=${form}`;
-            document.getElementById('copy-link').innerText = link;
+            
+            // Використовуємо .textContent замість .innerText для безпеки
+            const linkBox = document.getElementById('copy-link');
+            linkBox.textContent = link; 
 
             document.getElementById('qrcode').innerHTML = "";
             new QRCode(document.getElementById("qrcode"), { text: link, width: 180, height: 180 });
             document.getElementById('link-display').style.display = 'block';
             
             config.t = token; config.c = chatid;
-            tg(`📢 СЕСІЯ СТВОРЕНА. Чекаємо на учнів.`);
+            tg(`📢 СЕСІЯ СТВОРЕНА.`);
         }
 
         function copyToClipboard() {
-            navigator.clipboard.writeText(document.getElementById('copy-link').innerText).then(() => alert("Посилання скопійовано!"));
+            const link = document.getElementById('copy-link').textContent;
+            navigator.clipboard.writeText(link).then(() => alert("Скопійовано!"));
         }
 
         function startExam() {
-            config.name = document.getElementById('s-name').value;
+            // Очищуємо ім'я від будь-яких HTML тегів
+            const rawName = document.getElementById('s-name').value.trim();
+            config.name = rawName.replace(/<\/?[^>]+(>|$)/g, ""); 
+            
             if(!config.name) return alert("Введіть ім'я!");
+            
             document.getElementById('student-ui').style.display = 'none';
             config.loadCount = 0;
-            document.getElementById('test-frame').src = config.f;
-            document.getElementById('test-frame').style.display = 'block';
+            
+            const frame = document.getElementById('test-frame');
+            frame.src = config.f;
+            frame.style.display = 'block';
+            
             config.active = true;
             if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
             tg(`✅ УЧЕНЬ ПРИЄДНАВСЯ: ${config.name}`);
@@ -570,15 +652,13 @@
             }
         }
 
-        // ОНОВЛЕНИЙ КОНТРОЛЬ ВИХОДУ ТА ПОВЕРНЕННЯ
+        // Контроль видимості з безпечною обробкою
         document.addEventListener("visibilitychange", () => {
             if (config.active) {
                 if (document.hidden) {
-                    // Коли учень згорнув вкладку
                     document.getElementById('alert-banner').style.display = 'block';
                     tg(`🚨 УВАГА! Учень ${config.name} ВИЙШОВ З БРАУЗЕРА!`);
                 } else {
-                    // Коли учень повернувся у вкладку
                     document.getElementById('alert-banner').style.display = 'none';
                     tg(`↩️ Учень ${config.name} повернувся до роботи.`);
                 }
