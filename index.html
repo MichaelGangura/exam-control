@@ -500,62 +500,17 @@
     <iframe id="test-frame" src="" onload="handleFrameLoad()"></iframe>
 
     <script>
-        // Конфігурація та стан
         let config = { t: "", c: "", f: "", name: "", active: false, loadCount: 0 };
-
-        // Функція для безпечного очищення тексту (Захист від XSS)
-        function sanitize(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
 
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('t')) {
                 activateStudentMode(urlParams);
-            } else {
-                setupPasteButtons();
             }
         };
 
-        // Функція безпечної вставки з буфера
-        function setupPasteButtons() {
-            const fields = ['t-token', 't-chatid', 't-form'];
-            fields.forEach(id => {
-                const input = document.getElementById(id);
-                if (!input) return;
-
-                const wrapper = document.createElement('div');
-                wrapper.className = "input-wrapper"; // Додайте стилі в CSS для позиціонування
-                wrapper.style.position = 'relative';
-                wrapper.style.display = 'flex';
-                
-                input.parentNode.insertBefore(wrapper, input);
-                wrapper.appendChild(input);
-
-                const pasteBtn = document.createElement('div');
-                pasteBtn.innerHTML = '📋';
-                pasteBtn.className = "paste-btn";
-                pasteBtn.style.cssText = "cursor:pointer; padding:10px; position:absolute; right:10px; top:50%; transform:translateY(-50%); background:#eee; border-radius:5px; font-size:14px; opacity:0.7;";
-
-                pasteBtn.onclick = async () => {
-                    try {
-                        const text = await navigator.clipboard.readText();
-                        // Важливо: записуємо в .value, браузер сам обробить це як рядок
-                        input.value = text.trim(); 
-                        pasteBtn.style.background = '#28a745';
-                        setTimeout(() => pasteBtn.style.background = '#eee', 500);
-                    } catch (err) {
-                        console.log("Clipboard access denied");
-                    }
-                };
-                wrapper.appendChild(pasteBtn);
-            });
-        }
-
         function activateStudentMode(params) {
-            // Ховаємо все зайве
+            // Ховаємо елементи інтерфейсу вчителя
             const uiElements = ['teacher-ui-main', 'instruction', '.video-grid', 'donate', 'nav'];
             uiElements.forEach(el => {
                 const found = document.querySelector(el) || document.getElementById(el);
@@ -564,25 +519,20 @@
             
             document.getElementById('student-ui').style.display = 'block';
             
-            // Санітарна обробка вхідних параметрів з URL
-            config.t = params.get('t').replace(/[^a-zA-Z0-9:]/g, ''); // Токени ботів мають лише цифри, букви та двокрапку
-            config.c = params.get('c').replace(/[^0-9-]/g, ''); // ID чату — лише цифри та мінус
+            // Безпечна фільтрація параметрів
+            config.t = params.get('t').replace(/[^a-zA-Z0-9:]/g, '');
+            config.c = params.get('c').replace(/[^0-9-]/g, '');
             config.f = decodeURIComponent(params.get('f'));
         }
 
         async function tg(msg) {
-            // Надсилаємо повідомлення як чистий текст (захист від ін'єкцій у Telegram)
             try {
-                const url = `https://api.telegram.org/bot${config.t}/sendMessage`;
-                await fetch(url, {
+                await fetch(`https://api.telegram.org/bot${config.t}/sendMessage`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chat_id: config.c,
-                        text: msg // Telegram API саме екранує текст у JSON
-                    })
+                    body: JSON.stringify({ chat_id: config.c, text: msg })
                 });
-            } catch(e) { console.error("Network error"); }
+            } catch(e) { console.error("TG Error"); }
         }
 
         function handleFrameLoad() {
@@ -595,19 +545,19 @@
         }
 
         function generateSession() {
-            // Honeypot перевірка (якщо ви додали приховане поле id="h-pot")
+            // Перевірка Honeypot (захист від ботів)
             const pot = document.getElementById('h-pot');
-            if (pot && pot.value !== "") return; 
+            if (pot && pot.value !== "") return;
 
             const token = document.getElementById('t-token').value.trim();
             const chatid = document.getElementById('t-chatid').value.trim();
-            const form = encodeURIComponent(document.getElementById('t-form').value.trim());
+            const form = document.getElementById('t-form').value.trim();
 
-            if(!token || !chatid || !form) return alert("Заповніть поля!");
+            if(!token || !chatid || !form) return alert("Заповніть усі поля!");
 
-            const link = `${window.location.origin}${window.location.pathname}?t=${token}&c=${chatid}&f=${form}`;
+            const encodedForm = encodeURIComponent(form);
+            const link = `${window.location.origin}${window.location.pathname}?t=${token}&c=${chatid}&f=${encodedForm}`;
             
-            // Використовуємо .textContent замість .innerText для безпеки
             const linkBox = document.getElementById('copy-link');
             linkBox.textContent = link; 
 
@@ -620,14 +570,13 @@
         }
 
         function copyToClipboard() {
-            const link = document.getElementById('copy-link').textContent;
-            navigator.clipboard.writeText(link).then(() => alert("Скопійовано!"));
+            navigator.clipboard.writeText(document.getElementById('copy-link').textContent)
+                .then(() => alert("Посилання скопійовано!"));
         }
 
         function startExam() {
-            // Очищуємо ім'я від будь-яких HTML тегів
             const rawName = document.getElementById('s-name').value.trim();
-            config.name = rawName.replace(/<\/?[^>]+(>|$)/g, ""); 
+            config.name = rawName.replace(/<\/?[^>]+(>|$)/g, ""); // XSS очищення
             
             if(!config.name) return alert("Введіть ім'я!");
             
@@ -652,7 +601,6 @@
             }
         }
 
-        // Контроль видимості з безпечною обробкою
         document.addEventListener("visibilitychange", () => {
             if (config.active) {
                 if (document.hidden) {
@@ -665,7 +613,14 @@
             }
         });
 
-        document.oncontextmenu = (e) => e.preventDefault();
+        // ВИПРАВЛЕНО: Дозволяємо контекстне меню (вставку) тільки в полях вводу
+        document.oncontextmenu = function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return true; // Дозволити меню для вставки
+            }
+            e.preventDefault(); // Заблокувати всюди інде
+            return false;
+        };
     </script>
 </body>
 
