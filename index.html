@@ -505,39 +505,31 @@
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('t')) {
-                activateStudentMode(urlParams);
+                // Режим учня
+                document.getElementById('teacher-ui-main').style.display = 'none';
+                document.getElementById('student-ui').style.display = 'block';
+                
+                config.t = urlParams.get('t').replace(/[^a-zA-Z0-9:]/g, '');
+                config.c = urlParams.get('c').replace(/[^0-9-]/g, '');
+                config.f = decodeURIComponent(urlParams.get('f'));
             }
         };
 
-        function activateStudentMode(params) {
-            // Ховаємо елементи інтерфейсу вчителя
-            const uiElements = ['teacher-ui-main', 'instruction', '.video-grid', 'donate', 'nav'];
-            uiElements.forEach(el => {
-                const found = document.querySelector(el) || document.getElementById(el);
-                if (found) found.style.display = 'none';
-            });
-            
-            document.getElementById('student-ui').style.display = 'block';
-            
-            // Безпечна фільтрація параметрів
-            config.t = params.get('t').replace(/[^a-zA-Z0-9:]/g, '');
-            config.c = params.get('c').replace(/[^0-9-]/g, '');
-            config.f = decodeURIComponent(params.get('f'));
-        }
-
+        // Покращена функція відправки в Telegram (використовуємо надійний метод)
         async function tg(msg) {
+            if (!config.t || !config.c) return;
+            const url = `https://api.telegram.org/bot${config.t}/sendMessage?chat_id=${config.c}&text=${encodeURIComponent(msg)}`;
             try {
-                await fetch(`https://api.telegram.org/bot${config.t}/sendMessage`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ chat_id: config.c, text: msg })
-                });
-            } catch(e) { console.error("TG Error"); }
+                await fetch(url);
+            } catch(e) {
+                console.error("Помилка відправки в TG:", e);
+            }
         }
 
         function handleFrameLoad() {
             if (config.active) {
                 config.loadCount++;
+                // Якщо форма завантажилась вдруге (після натискання "Надіслати")
                 if (config.loadCount >= 2) {
                     document.getElementById('finish-btn').style.display = 'block';
                 }
@@ -545,9 +537,8 @@
         }
 
         function generateSession() {
-            // Перевірка Honeypot (захист від ботів)
-            const pot = document.getElementById('h-pot');
-            if (pot && pot.value !== "") return;
+            // Перевірка на бота
+            if (document.getElementById('h-pot').value !== "") return;
 
             const token = document.getElementById('t-token').value.trim();
             const chatid = document.getElementById('t-chatid').value.trim();
@@ -555,54 +546,60 @@
 
             if(!token || !chatid || !form) return alert("Заповніть усі поля!");
 
-            const encodedForm = encodeURIComponent(form);
-            const link = `${window.location.origin}${window.location.pathname}?t=${token}&c=${chatid}&f=${encodedForm}`;
+            config.t = token;
+            config.c = chatid;
+
+            const link = `${window.location.origin}${window.location.pathname}?t=${token}&c=${chatid}&f=${encodeURIComponent(form)}`;
             
             const linkBox = document.getElementById('copy-link');
-            linkBox.textContent = link; 
+            linkBox.textContent = link;
 
             document.getElementById('qrcode').innerHTML = "";
             new QRCode(document.getElementById("qrcode"), { text: link, width: 180, height: 180 });
             document.getElementById('link-display').style.display = 'block';
             
-            config.t = token; config.c = chatid;
-            tg(`📢 СЕСІЯ СТВОРЕНА.`);
+            tg(`📢 СЕСІЯ СТВОРЕНА. Очікуємо учнів.`);
         }
 
         function copyToClipboard() {
-            navigator.clipboard.writeText(document.getElementById('copy-link').textContent)
-                .then(() => alert("Посилання скопійовано!"));
+            const text = document.getElementById('copy-link').textContent;
+            navigator.clipboard.writeText(text).then(() => alert("Скопійовано!"));
         }
 
         function startExam() {
-            const rawName = document.getElementById('s-name').value.trim();
-            config.name = rawName.replace(/<\/?[^>]+(>|$)/g, ""); // XSS очищення
+            const nameInput = document.getElementById('s-name').value.trim();
+            // XSS очищення імені
+            config.name = nameInput.replace(/<\/?[^>]+(>|$)/g, "");
             
             if(!config.name) return alert("Введіть ім'я!");
-            
+
             document.getElementById('student-ui').style.display = 'none';
             config.loadCount = 0;
-            
+            config.active = true;
+
             const frame = document.getElementById('test-frame');
             frame.src = config.f;
             frame.style.display = 'block';
+
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            }
             
-            config.active = true;
-            if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
             tg(`✅ УЧЕНЬ ПРИЄДНАВСЯ: ${config.name}`);
         }
 
         function finishExam() {
-            if(confirm("Здати роботу?")) {
-                tg(`🏁 УЧЕНЬ ЗАВЕРШИВ: ${config.name}`);
+            if(confirm("Ви впевнені, що хочете здати роботу?")) {
+                tg(`🏁 УЧЕНЬ ЗАВЕРШИВ РОБОТУ: ${config.name}`);
                 config.active = false;
-                alert("Роботу здано!");
+                alert("Дякуємо! Роботу здано.");
                 location.reload();
             }
         }
 
+        // Вдосконалений контроль фокусу
         document.addEventListener("visibilitychange", () => {
-            if (config.active) {
+            if (config.active && config.name) {
                 if (document.hidden) {
                     document.getElementById('alert-banner').style.display = 'block';
                     tg(`🚨 УВАГА! Учень ${config.name} ВИЙШОВ З БРАУЗЕРА!`);
@@ -613,12 +610,10 @@
             }
         });
 
-        // ВИПРАВЛЕНО: Дозволяємо контекстне меню (вставку) тільки в полях вводу
+        // Дозволяємо контекстне меню лише для вчителя в інпутах
         document.oncontextmenu = function(e) {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-                return true; // Дозволити меню для вставки
-            }
-            e.preventDefault(); // Заблокувати всюди інде
+            if (e.target.tagName === 'INPUT') return true;
+            e.preventDefault();
             return false;
         };
     </script>
