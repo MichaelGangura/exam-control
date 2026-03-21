@@ -356,6 +356,27 @@ button {
     height: 100%;
 }
 
+#donate p {
+    color: white;
+    font-family: "Inter", sans-serif;
+    font-weight: 100;
+}
+
+.privacy {
+    max-width: 600px;
+    margin: 10px auto 0;
+}
+.privacy h4 {
+    color: rgb(249, 158, 23);
+    margin-bottom: 0px;
+}
+.privacy p {
+    color: white;
+    font-family: "Inter", sans-serif;
+    font-size: 12px;
+    font-weight: 100;
+}
+
 @media (max-width: 786px) {
     .m1 {
         position: fixed;

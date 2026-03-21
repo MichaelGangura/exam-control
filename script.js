@@ -1,34 +1,29 @@
-// 1. КОНФІГУРАЦІЯ
 let config = { t: "", c: "", f: "", name: "", active: false, loadCount: 0 };
 
-// 2. МИТТЄВА ПЕРЕВІРКА РЕЖИМУ (виконується до того, як користувач побачить сторінку)
+// 1. МИТТЄВА ПЕРЕВІРКА РЕЖИМУ
 function checkMode() {
     const urlParams = new URLSearchParams(window.location.search);
     const teacherUI = document.getElementById('teacher-ui-main');
     const studentUI = document.getElementById('student-ui');
 
     if (urlParams.has('t')) {
-        // РЕЖИМ УЧНЯ
         if (studentUI) studentUI.style.display = 'block';
-        if (teacherUI) teacherUI.remove(); // Повністю видаляємо інтерфейс вчителя з DOM для безпеки
+        if (teacherUI) teacherUI.remove();
 
         config.t = urlParams.get('t').replace(/[^a-zA-Z0-9:]/g, '');
         config.c = urlParams.get('c').replace(/[^0-9-]/g, '');
         config.f = decodeURIComponent(urlParams.get('f'));
 
-        // Ховаємо сторонні елементи сайту
         ['instruction', '.video-grid', 'donate', 'nav'].forEach(el => {
             const found = document.querySelector(el) || document.getElementById(el);
             if (found) found.style.display = 'none';
         });
     } else {
-        // РЕЖИМ ВЧИТЕЛЯ
         if (teacherUI) teacherUI.style.display = 'block';
         if (studentUI) studentUI.remove();
     }
 }
 
-// Запускаємо логіку щойно побудована структура сторінки
 document.addEventListener('DOMContentLoaded', checkMode);
 
 window.onload = function () {
@@ -36,20 +31,34 @@ window.onload = function () {
     if (frame) { frame.addEventListener('load', handleFrameLoad); }
 };
 
-// 3. ФУНКЦІЯ КОПІЮВАННЯ (з алертом)
-function copyToClipboard() {
-    const linkText = document.getElementById('copy-link').textContent;
-    if (!linkText) return;
+// 2. ВДОСКОНАЛЕНЕ КОПІЮВАННЯ (працює на всіх пристроях)
+async function copyToClipboard() {
+    const linkDisplay = document.getElementById('copy-link');
+    const textToCopy = linkDisplay.textContent || linkDisplay.innerText;
 
-    navigator.clipboard.writeText(linkText).then(() => {
-        alert("✅ Посилання успішно скопійовано! Тепер надішліть його учням.");
-    }).catch(err => {
-        console.error('Помилка копіювання: ', err);
-        alert("❌ Помилка при копіюванні. Спробуйте виділити текст вручну.");
-    });
+    if (!textToCopy) return;
+
+    try {
+        // Спершу пробуємо сучасний метод
+        await navigator.clipboard.writeText(textToCopy);
+        alert("✅ Посилання успішно скопійовано!");
+    } catch (err) {
+        // Запасний метод для старих браузерів або специфічних умов безпеки
+        const textArea = document.createElement("textarea");
+        textArea.value = textToCopy;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            alert("✅ Посилання скопійовано!");
+        } catch (err2) {
+            alert("❌ Не вдалося скопіювати. Будь ласка, виділіть текст вручну.");
+        }
+        document.body.removeChild(textArea);
+    }
 }
 
-// 4. TELEGRAM ТА ЛОГІКА ТЕСТУ
+// 3. ЛОГІКА ТЕСТУ ТА TELEGRAM
 async function tg(msg) {
     if (!config.t || !config.c) return;
     const url = `https://api.telegram.org/bot${config.t}/sendMessage?chat_id=${config.c}&text=${encodeURIComponent(msg)}`;
@@ -76,21 +85,19 @@ function generateSession() {
     config.t = token; config.c = chatid;
     const link = `${window.location.origin}${window.location.pathname}?t=${token}&c=${chatid}&f=${encodeURIComponent(form)}`;
 
-    const linkDisplay = document.getElementById('copy-link');
-    linkDisplay.textContent = link;
+    const linkBox = document.getElementById('copy-link');
+    linkBox.textContent = link;
 
     document.getElementById('qrcode').innerHTML = "";
     new QRCode(document.getElementById("qrcode"), { text: link, width: 180, height: 180 });
     document.getElementById('link-display').style.display = 'block';
 
-    tg(`📢 СЕСІЯ СТВОРЕНА. Чекаємо на учнів.`);
+    tg(`📢 СЕСІЯ СТВОРЕНА.`);
 }
 
 function startExam() {
     const nameInput = document.getElementById('s-name').value.trim();
     if (!nameInput) return alert("Введіть ім'я!");
-
-    // RegExp: Дозволяємо лише безпечні символи в імені
     config.name = nameInput.replace(/[^\w\sа-яА-ЯіїєґІЇЄҐ-]/g, '');
 
     document.getElementById('student-ui').style.display = 'none';
@@ -109,31 +116,37 @@ function startExam() {
 
 function finishExam() {
     if (confirm("Здати роботу?")) {
-        tg(`🏁 УЧЕНЬ ЗАВЕРШИВ РОБОТУ: ${config.name}`);
+        tg(`🏁 УЧЕНЬ ЗАВЕРШИВ: ${config.name}`);
         config.active = false;
-        alert("Вашу роботу успішно надіслано вчителю!");
+        alert("Роботу здано!");
         location.reload();
     }
 }
 
-// 5. КОНТРОЛЬ ПОВЕДІНКИ (Visibility & PageHide)
+// 4. КОНТРОЛЬ ПОВЕДІНКИ
 document.addEventListener("visibilitychange", () => {
     if (config.active && config.name) {
         if (document.hidden) {
             document.getElementById('alert-banner').style.display = 'block';
-            tg(`🚨 УВАГА! Учень ${config.name} ЗГОРНУВ БРАУЗЕР або перейшов на іншу вкладку!`);
+            tg(`🚨 УВАГА! Учень ${config.name} ЗГОРНУВ БРАУЗЕР!`);
         } else {
             document.getElementById('alert-banner').style.display = 'none';
-            tg(`↩️ Учень ${config.name} ПОВЕРНУВСЯ до тесту.`);
+            tg(`↩️ Учень ${config.name} ПОВЕРНУВСЯ.`);
         }
     }
 });
 
 window.addEventListener("pagehide", () => {
     if (config.active && config.name) {
-        tg(`⚠️ Учень ${config.name} ПОВНІСТЮ ПОКИНУВ СТОРІНКУ (закрив вкладку).`);
+        tg(`⚠️ Учень ${config.name} ЗАКРИВ вкладку.`);
     }
 });
 
-// Блокування контекстного меню (вставка дозволена тільки в полях)
-document.oncontextmenu = (e) => (e.target.tagName === 'INPUT') ? true : e.preventDefault();
+// 5. РОЗУМНЕ БЛОКУВАННЯ (дозволяє вставку в інпути ТА клік по copy-link)
+document.oncontextmenu = function (e) {
+    if (e.target.tagName === 'INPUT' || e.target.id === 'copy-link') {
+        return true;
+    }
+    e.preventDefault();
+    return false;
+};
