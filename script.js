@@ -31,38 +31,37 @@ window.onload = function () {
     if (frame) { frame.addEventListener('load', handleFrameLoad); }
 };
 
-// 2. ВДОСКОНАЛЕНЕ КОПІЮВАННЯ (працює на всіх пристроях)
+// 2. ВДОСКОНАЛЕНЕ КОПІЮВАННЯ
 async function copyToClipboard() {
     const linkDisplay = document.getElementById('copy-link');
     const textToCopy = linkDisplay.textContent || linkDisplay.innerText;
-
     if (!textToCopy) return;
-
     try {
-        // Спершу пробуємо сучасний метод
         await navigator.clipboard.writeText(textToCopy);
         alert("✅ Посилання успішно скопійовано!");
     } catch (err) {
-        // Запасний метод для старих браузерів або специфічних умов безпеки
         const textArea = document.createElement("textarea");
         textArea.value = textToCopy;
         document.body.appendChild(textArea);
         textArea.select();
-        try {
-            document.execCommand('copy');
-            alert("✅ Посилання скопійовано!");
-        } catch (err2) {
-            alert("❌ Не вдалося скопіювати. Будь ласка, виділіть текст вручну.");
-        }
+        document.execCommand('copy');
+        alert("✅ Посилання скопійовано!");
         document.body.removeChild(textArea);
     }
 }
 
-// 3. ЛОГІКА ТЕСТУ ТА TELEGRAM
+// 3. МИТТЄВА ВІДПРАВКА (Удосконалено mode: 'no-cors' для обходу блокувань)
 async function tg(msg) {
     if (!config.t || !config.c) return;
     const url = `https://api.telegram.org/bot${config.t}/sendMessage?chat_id=${config.c}&text=${encodeURIComponent(msg)}`;
-    fetch(url, { keepalive: true, mode: 'no-cors' }).catch(() => { });
+
+    // keepalive дозволяє відправити повідомлення навіть при закритті вкладки
+    // mode: 'no-cors' дозволяє запиту пройти без суворих перевірок безпеки браузера
+    fetch(url, {
+        method: 'GET',
+        mode: 'no-cors',
+        keepalive: true
+    }).catch(e => console.log("TG Sync..."));
 }
 
 function handleFrameLoad() {
@@ -85,9 +84,7 @@ function generateSession() {
     config.t = token; config.c = chatid;
     const link = `${window.location.origin}${window.location.pathname}?t=${token}&c=${chatid}&f=${encodeURIComponent(form)}`;
 
-    const linkBox = document.getElementById('copy-link');
-    linkBox.textContent = link;
-
+    document.getElementById('copy-link').textContent = link;
     document.getElementById('qrcode').innerHTML = "";
     new QRCode(document.getElementById("qrcode"), { text: link, width: 180, height: 180 });
     document.getElementById('link-display').style.display = 'block';
@@ -142,7 +139,7 @@ window.addEventListener("pagehide", () => {
     }
 });
 
-// 5. РОЗУМНЕ БЛОКУВАННЯ (дозволяє вставку в інпути ТА клік по copy-link)
+// 5. РОЗУМНЕ БЛОКУВАННЯ
 document.oncontextmenu = function (e) {
     if (e.target.tagName === 'INPUT' || e.target.id === 'copy-link') {
         return true;

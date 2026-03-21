@@ -365,6 +365,7 @@ button {
 .privacy {
     max-width: 600px;
     margin: 10px auto 0;
+    text-align: center;
 }
 .privacy h4 {
     color: rgb(249, 158, 23);
@@ -375,6 +376,7 @@ button {
     font-family: "Inter", sans-serif;
     font-size: 12px;
     font-weight: 100;
+    padding: 0 10px;
 }
 
 @media (max-width: 786px) {
