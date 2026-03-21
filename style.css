@@ -30,6 +30,12 @@ body {
     background: linear-gradient(135deg, hsla(254, 96%, 38%, 0.8), hsla(254, 88%, 13%, 0.8));
 }
 
+/* Поява інтерфейсу */
+/* Приховуємо обидві панелі за замовчуванням */
+#teacher-ui-main, #student-ui {
+    display: none;
+}
+
 /* Навігація */
 nav {
     background: rgba(44, 11, 134, 0.8);
