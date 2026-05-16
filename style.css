@@ -79,8 +79,13 @@ nav img {
 .container {
     max-width: 800px;
     margin: 0 auto;
-    padding: 15px;
+    padding: 10px;
     text-align: center;
+}
+
+.container > section {
+    max-width: 95%;
+    margin: 0 auto;
 }
 
 h2 {
@@ -314,12 +319,15 @@ button {
 .instruction-section ul {
     text-align: left;
     font-style: normal;
-    padding-left: 20px;
+    padding-left: 10px;
+    overflow-wrap: anywhere;
 }
 
 .instruction-section li {
     margin-bottom: 10px;
     list-style-type: "🚀 ";
+    list-style-position: inside;
+    padding-left: 0;
 }
 
 .instruction-section li.sub {
@@ -329,6 +337,7 @@ button {
 
 .instruction-section li a {
     color: white;
+    word-break: break-word;
 }
 
 
@@ -356,10 +365,16 @@ button {
     height: 100%;
 }
 
-#donate p {
+#payment p, #payment a {
     color: white;
     font-family: "Inter", sans-serif;
     font-weight: 100;
+}
+
+.fop {
+    font-size: 12px;
+    margin-top: 5px;
+    font-style: italic;
 }
 
 .privacy {
@@ -376,7 +391,6 @@ button {
     font-family: "Inter", sans-serif;
     font-size: 12px;
     font-weight: 100;
-    padding: 0 10px;
 }
 
 @media (max-width: 786px) {
@@ -408,6 +422,31 @@ button {
 
     nav a {
         padding: 6px 10px;
+    }
+
+    .instruction-section {
+        padding: 0 10px;
+    }
+
+    .instruction-section ul {
+        padding-left: 14px;
+    }
+
+    .instruction-section li {
+        font-size: 14px;
+    }
+
+    .instruction-section li.sub {
+        margin-left: 12px;
+    }
+
+    .m1,
+    .m2 {
+        width: 45%;
+    }
+
+    body {
+        overflow-x: hidden;
     }
 
 }
