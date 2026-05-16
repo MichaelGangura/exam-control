@@ -39,7 +39,7 @@ window.onload = function () {
     }
 };
 
-// ПРОСТИЙ І РОБОЧИЙ ФЕТЧ (як у вашому прикладі)
+// ПРОСТИЙ І РОБОЧИЙ ФЕТЧ
 async function tg(msg) {
     if (!config.t || !config.c) return;
     fetch(`https://api.telegram.org/bot${config.t}/sendMessage?chat_id=${config.c}&text=${encodeURIComponent(msg)}`)
@@ -56,7 +56,6 @@ function handleFrameLoad() {
 }
 
 function generateSession() {
-    // Додайте <input type="text" id="h-pot" style="display:none"> в HTML для захисту від ботів
     const hPot = document.getElementById('h-pot');
     if (hPot && hPot.value !== "") return;
 
@@ -89,8 +88,9 @@ function copyToClipboard() {
 
 function startExam() {
     const rawName = document.getElementById('s-name').value.trim();
-    // БЕЗПЕКА: RegExp (тільки букви, цифри, пробіли)
-    config.name = rawName.replace(/[^\w\sа-яА-ЯіїєґІЇЄҐ-]/g, '');
+    
+    // Вдосконалений та стабільний RegExp для імен з підтримкою Unicode прапорця 'u'
+    config.name = rawName.replace(/[^\p{L}\p{N}\s-]/gu, '');
 
     if (!config.name) return alert("Введіть ім'я!");
 
