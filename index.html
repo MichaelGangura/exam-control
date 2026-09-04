@@ -4,6 +4,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Оновлений безпечний CSP з чітким дозволом connect-src -->
+    <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self' https://api.telegram.org https://cdnjs.cloudflare.com https://ajax.googleapis.com;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://api.telegram.org https://cdnjs.cloudflare.com https://ajax.googleapis.com;
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: https://via.placeholder.com https://send.monobank.ua https://www.monobank.com.ua;
+    connect-src 'self' https://api.telegram.org;
+    frame-src https://docs.google.com https://www.youtube.com;
+    ">
+    <meta name="description" content="Exam Control - сервіс для контролю проходження тестів учнями з використанням Telegram-бота та Google Форм.">
+    <title>Exam Control</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="preload" href="assets/inter-v20-cyrillic_latin-100.woff2" as="font" type="font/woff2" crossorigin>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div id="alert-banner" class="alert">ВИХІД ЗАФІКСОВАНО! ПОВЕРНІТЬСЯ ДО ТЕСТУ!</div>
+    <button id="finish-btn" class="btn-finish" onclick="finishExam()">Здати роботу вчителю</button>
+
+    <div class="container">
+        <section id="teacher-ui-main">
+            <nav>
+                <img src="assets/logo.svg" alt="logo">
+                <div class="link-container"><a href="#instruction">Детальна Інструкція</a></div>
+            </nav>
+
+            <model-viewer class="m1" src="assets/sphere.glb" loading="lazy" alt="3D model" shadow-intensity="1" auto-rotate></model-viewer>
+            <model-viewer class="m2" src="assets/sphere.glb" loading="lazy" alt="3D model" shadow-intensity="1" auto-rotate></model-viewer>
+            
+            <section id="teacher-ui" class="card">
+                <h2>СТВОРИТИ КОНТРОЛЬНУ</h2>
+                <input type="password" id="t-token" placeholder="Telegram Bot Token">
+                <input type="text" id="t-chatid" placeholder="Ваш Chat ID">
+                <input type="text" id="t-form" placeholder="Посилання на Google Форму">
+                <input type="text" id="h-pot" style="display:none;" tabindex="-1" autocomplete="off">
+                <button class="btn-teacher" onclick="generateSession()">ЗГЕНЕРУВАТИ ДОСТУП</button>
+                
+                <div id="link-display" style="display:none">
+                    <div class="link-label">1. Посилання для месенджерів:</div>
+                    <div class="link-box" id="copy-link" title="Натисніть, щоб скопіювати" onclick="copyToClipboard()"></div>
+                    <div class="link-label">2. Або покажіть цей QR-код:</div>
+                    <div id="qrcode"></div>
+                </div>
+            </section>
+
+            <section id="instruction" class="card instruction-section">
+                <h3>📖 Детальна інструкція</h3>
+                <p><b>Як почати роботу вчителю:</b></p>
+                <ul>
+                    <li>Створіть Telegram-бота через <a href="https://t.me/BotFather" target="_blank">@BotFather</a> та отримайте <b>Token</b>, вставте його у поле вище.</li>
+                    <li>Дізнайтеся свій <b>Chat ID</b> через <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a> та вставте у поле вище.</li>
+                    <li>Напишіть своєму боту будь-яке повідомлення (натисніть Start).</li>
+                    <li>Підготуйте Google Форму, вставте посилання та натисніть "Згенерувати доступ".</li>
+                    <li>Скопіюйте посилання та надішліть учням.</li>
+                </ul>
+                <p><b>Інструкція для учнів:</b></p>
+                <ul>
+                    <li class="sub">Перейдіть за посиланням або відскануйте QR-код.</li>
+                    <li class="sub">Введіть прізвище та ім'я.</li>
+                    <li class="sub"><b>Важливо:</b> не згортайте браузер і не перемикайте вкладки під час тесту!</li>
+                </ul>
+            </section>
+
+            <section class="video-grid">
+                <div class="video-container">
+                    <iframe src="https://www.youtube.com/embed/P47A6AnYvO0" title="Створення Google Форм" allowfullscreen loading="lazy"></iframe>
+                </div>
+                <div class="video-container">
+                    <iframe src="https://www.youtube.com/embed/T6_uVv_Nia4" title="Створення Telegram бота" allowfullscreen loading="lazy"></iframe>
+                </div>
+            </section>
+
+            <section id="payment" style="margin: 50px 0;">
+                <p>Сервіс повністю безкоштовний, але за бажанням можете зробити довільну оплату</p>
+                <button class="btn-teacher" style="width:auto; padding:10px 20px;" onclick="window.open('https://send.monobank.ua/jar/YOUR_JAR_ID', '_blank')">Добровільна оплата ☕</button>
+                <p>Натискаючи на кнопку, ви здійснюєте добровільну оплату та погоджуєтеся з умовами <a href="oferta.html" target="_blank">Публічної оферти</a>.</p>
+                <p class="fop">Отримувач платежу: ФОП Гангура Михайло Олексійович, РНОКПП (ІПН): 3096204014</p>
+            </section>
+
+            <div class="privacy">
+                <h4>Політика конфіденційності:</h4>
+                <p>Ми поважаємо ваші дані. Цей сервіс не зберігає персональну інформацію на сервері. Введені дані використовуються виключно для технічного зв'язку між вашим браузером та обраним Telegram-ботом через офіційний API.</p>
+            </div>
+        </section>
+
+        <section id="student-ui" class="card" style="display:none;">
+            <h2>Вхід на тест</h2>
+            <input type="text" id="s-name" placeholder="Прізвище та Ім'я">
+            <button class="btn-student" onclick="startExam()">ПОЧАТИ</button>
+        </section>
+    </div>
+
+    <iframe id="test-frame" style="display:none;"></iframe>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
+
+
+<!-- <!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Content-Security-Policy" content="
     default-src 'self' https://api.telegram.org https://cdnjs.cloudflare.com https://ajax.googleapis.com;
     script-src 'self' 'unsafe-inline' 'unsafe-eval' https://api.telegram.org https://cdnjs.cloudflare.com https://ajax.googleapis.com;
@@ -145,4 +255,4 @@
     <script src="script.js"></script>
 </body>
 
-</html>
+</html> -->

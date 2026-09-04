@@ -1,35 +1,27 @@
 let config = { t: "", c: "", f: "", name: "", active: false, loadCount: 0 };
 
-// 1. ПЕРЕВІРКА РЕЖИМУ (Викликається відразу для уникнення "миготіння")
+// 1. МИТТЄВА ПЕРЕВІРКА РЕЖИМУ (Вчитель / Учень)
 function checkMode() {
     const urlParams = new URLSearchParams(window.location.search);
     const tUI = document.getElementById('teacher-ui-main');
     const sUI = document.getElementById('student-ui');
 
-    if (urlParams.has('t')) {
-        // РЕЖИМ УЧНЯ
+    if (urlParams.has('t') && urlParams.has('c')) {
+        // Режим учня
         if (tUI) tUI.style.display = 'none';
         if (sUI) sUI.style.display = 'block';
 
-        // Приховуємо все зайве
-        const selectors = ['#instruction', '.video-grid', '#donate', 'nav'];
-        selectors.forEach(s => {
-            const el = document.querySelector(s);
-            if (el) el.style.display = 'none';
-        });
-
-        // БЕЗПЕКА: Очищення токенів (RegExp)
-        config.t = urlParams.get('t').replace(/[^a-zA-Z0-9:]/g, '');
-        config.c = urlParams.get('c').replace(/[^0-9-]/g, '');
-        config.f = decodeURIComponent(urlParams.get('f'));
+        // Зчитуємо параметри без жорсткого видалення символів
+        config.t = urlParams.get('t').trim();
+        config.c = urlParams.get('c').trim();
+        config.f = decodeURIComponent(urlParams.get('f') || '');
     } else {
-        // РЕЖИМ ВЧИТЕЛЯ
+        // Режим вчителя
         if (tUI) tUI.style.display = 'block';
         if (sUI) sUI.style.display = 'none';
     }
 }
 
-// Запуск перевірки миттєво
 document.addEventListener('DOMContentLoaded', checkMode);
 
 window.onload = function () {
@@ -39,11 +31,18 @@ window.onload = function () {
     }
 };
 
-// ПРОСТИЙ І РОБОЧИЙ ФЕТЧ
-async function tg(msg) {
+// 2. НАДІЙНА ВІДПРАВКА ПОВІДОМЛЕНЬ У TELEGRAM
+function tg(msg) {
     if (!config.t || !config.c) return;
-    fetch(`https://api.telegram.org/bot${config.t}/sendMessage?chat_id=${config.c}&text=${encodeURIComponent(msg)}`)
-        .catch(e => console.error("TG error"));
+
+    const endpoint = `https://api.telegram.org/bot${config.t}/sendMessage?chat_id=${config.c}&text=${encodeURIComponent(msg)}`;
+
+    // Метод 1: Fetch із keepalive (працює при фоновому режимі)
+    fetch(endpoint, { keepalive: true, mode: 'no-cors' }).catch(() => {
+        // Метод 2: Резервний фолбек через Image-запит (ігнорує CORS та блокування браузера)
+        const img = new Image();
+        img.src = endpoint;
+    });
 }
 
 function handleFrameLoad() {
@@ -55,6 +54,7 @@ function handleFrameLoad() {
     }
 }
 
+// 3. ГЕНЕРАЦІЯ СЕСІЇ ВЧИТЕЛЕМ
 function generateSession() {
     const hPot = document.getElementById('h-pot');
     if (hPot && hPot.value !== "") return;
@@ -65,47 +65,80 @@ function generateSession() {
 
     if (!token || !chatid || !form) return alert("Заповніть усі поля!");
 
-    config.t = token; config.c = chatid;
-    const link = `${window.location.origin}${window.location.pathname}?t=${token}&c=${chatid}&f=${encodeURIComponent(form)}`;
+    config.t = token;
+    config.c = chatid;
+    config.f = form;
+
+    const link = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(token)}&c=${encodeURIComponent(chatid)}&f=${encodeURIComponent(form)}`;
 
     const copyBox = document.getElementById('copy-link');
     if (copyBox) copyBox.innerText = link;
 
-    document.getElementById('qrcode').innerHTML = "";
-    new QRCode(document.getElementById("qrcode"), { text: link, width: 180, height: 180 });
+    const qrcodeEl = document.getElementById('qrcode');
+    if (qrcodeEl) {
+        qrcodeEl.innerHTML = "";
+        new QRCode(qrcodeEl, { text: link, width: 180, height: 180 });
+    }
+
     document.getElementById('link-display').style.display = 'block';
 
     tg(`📢 СЕСІЯ СТВОРЕНА. Чекаємо на учнів.`);
 }
 
-// КОПІЮВАННЯ З АЛЕРТОМ
+// 4. КОПІЮВАННЯ ПОСИЛАННЯ
 function copyToClipboard() {
-    const link = document.getElementById('copy-link').innerText;
-    navigator.clipboard.writeText(link).then(() => {
-        alert("✅ Посилання скопійовано!");
-    });
+    const copyBox = document.getElementById('copy-link');
+    if (!copyBox) return;
+
+    const linkText = copyBox.innerText;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(linkText).then(() => {
+            alert("✅ Посилання скопійовано!");
+        }).catch(() => fallbackCopy(linkText));
+    } else {
+        fallbackCopy(linkText);
+    }
 }
 
-function startExam() {
-    const rawName = document.getElementById('s-name').value.trim();
-    
-    // Вдосконалений та стабільний RegExp для імен з підтримкою Unicode прапорця 'u'
-    config.name = rawName.replace(/[^\p{L}\p{N}\s-]/gu, '');
+function fallbackCopy(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    alert("✅ Посилання скопійовано!");
+}
 
-    if (!config.name) return alert("Введіть ім'я!");
+// 5. СТАРТ ТЕСТУ УЧНЕМ
+function startExam() {
+    const nameInput = document.getElementById('s-name');
+    if (!nameInput) return;
+
+    const rawName = nameInput.value.trim();
+    if (!rawName) return alert("Введіть ім'я та прізвище!");
+
+    config.name = rawName;
 
     document.getElementById('student-ui').style.display = 'none';
     config.loadCount = 0;
 
     const frame = document.getElementById('test-frame');
-    frame.src = config.f;
-    frame.style.display = 'block';
+    if (frame) {
+        frame.src = config.f;
+        frame.style.display = 'block';
+    }
 
     config.active = true;
-    if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+
+    if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+    }
+
     tg(`✅ УЧЕНЬ ПРИЄДНАВСЯ: ${config.name}`);
 }
 
+// 6. ЗАВЕРШЕННЯ ТЕСТУ
 function finishExam() {
     if (confirm("Здати роботу?")) {
         tg(`🏁 УЧЕНЬ ЗАВЕРШИВ: ${config.name}`);
@@ -115,20 +148,22 @@ function finishExam() {
     }
 }
 
-// КОНТРОЛЬ ВИХОДУ
+// 7. СТАТУС ВІДСУТНОСТІ (Visibility Change)
 document.addEventListener("visibilitychange", () => {
     if (config.active && config.name) {
         if (document.hidden) {
-            document.getElementById('alert-banner').style.display = 'block';
+            const banner = document.getElementById('alert-banner');
+            if (banner) banner.style.display = 'block';
             tg(`🚨 УВАГА! ${config.name} ВИЙШОВ З БРАУЗЕРА!`);
         } else {
-            document.getElementById('alert-banner').style.display = 'none';
+            const banner = document.getElementById('alert-banner');
+            if (banner) banner.style.display = 'none';
             tg(`↩️ Учень ${config.name} ПОВЕРНУВСЯ.`);
         }
     }
 });
 
-// Дозволяємо меню тільки в інпутах і на посиланні для вчителя
+// Контекстне меню
 document.oncontextmenu = (e) => {
     if (e.target.tagName === 'INPUT' || e.target.id === 'copy-link') return true;
     e.preventDefault();
