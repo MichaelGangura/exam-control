@@ -1,10 +1,9 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="uk">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- Оновлений безпечний CSP з чітким дозволом connect-src -->
     <meta http-equiv="Content-Security-Policy" content="
     default-src 'self' https://api.telegram.org https://cdnjs.cloudflare.com https://ajax.googleapis.com;
     script-src 'self' 'unsafe-inline' 'unsafe-eval' https://api.telegram.org https://cdnjs.cloudflare.com https://ajax.googleapis.com;
@@ -105,10 +104,10 @@
     <script src="script.js"></script>
 </body>
 
-</html>
+</html> -->
 
 
-<!-- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="uk">
 
 <head>
@@ -122,7 +121,8 @@
     connect-src *;
     frame-src https://docs.google.com https://www.youtube.com;
     ">
-    <meta name="description" content="Exam Control - сервіс для контролю проходження тестів учнями з використанням Telegram-бота та Google Форм.">
+    <meta name="description"
+        content="Exam Control - сервіс для контролю проходження тестів учнями з використанням Telegram-бота та Google Форм.">
     <title>Exam Control</title>
     <link rel="icon" type="image/png" href="assets/favicon.png">
     <link rel="preload" href="assets/inter-v20-cyrillic_latin-100.woff2" as="font" type="font/woff2" crossorigin>
@@ -193,7 +193,8 @@
                     </li>
                     <li>
                         Відповіді учнів на запитання можна буде побачити в Google Формі,
-                        відкривши форму, зверху над заголовком самої форми у вкладці "Відповіді".
+                        відкривши форму, зверху над заголовком самої форми у вкладці "Відповіді" (між "Запитання" і
+                        "Налаштування").
                         Там ви зможете побачити всі відповіді учнів після того, як вони завершать тест.
                     </li>
                     <li>
@@ -216,14 +217,18 @@
             </section>
             <section class="video-grid">
                 <div class="video-container">
-                    <iframe src="https://www.youtube.com/embed/P47A6AnYvO0" title="Створення Google Форм"
-                        allowfullscreen loading="lazy">
-                    </iframe>
+                    <video controls width="100%" poster="assets/g_vid1.jpg" playsinline preload="metadata">
+                        <source src="assets/video_guide_1.mp4" type="video/mp4">
+                        Ваш браузер не підтримує відтворення відео.
+                        Ви можете <a href="assets/video_guide_1.mp4">завантажити його</a>.
+                    </video>
                 </div>
                 <div class="video-container">
-                    <iframe src="https://www.youtube.com/embed/T6_uVv_Nia4" title="Створення Telegram бота"
-                        allowfullscreen loading="lazy">
-                    </iframe>
+                    <video controls width="100%" poster="assets/g_vid2.jpg" playsinline preload="metadata">
+                        <source src="assets/video_guide_2.mp4" type="video/mp4">
+                        Ваш браузер не підтримує відтворення відео.
+                        Ви можете <a href="assets/video_guide_2.mp4">завантажити його</a>.
+                    </video>
                 </div>
             </section>
             <section id="payment" style="margin: 50px 0;">
@@ -255,4 +260,4 @@
     <script src="script.js"></script>
 </body>
 
-</html> -->
+</html>
